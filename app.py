@@ -4,8 +4,8 @@ import os
 
 # --- Page Config ---
 st.set_page_config(page_title="Udaipur Travel Guide", page_icon="🏰", layout="wide")
-st.title("🏰 Explore Udaipur")
-st.markdown("Discover the best spots in the City of Lakes, updated daily.")
+st.title("🏰 Ramona's Guide to Exploring Udaipur")
+st.markdown("Discover the best spots in the City of Lakes, updated daily. Built with <3")
 
 # --- Database Connection ---
 # Streamlit Cloud uses "st.secrets" instead of os.environ for security
