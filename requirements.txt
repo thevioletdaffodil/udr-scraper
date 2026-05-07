@@ -1,4 +1,5 @@
-azure-functions
-requests
-beautifulsoup4
-azure-cosmos
+azure-functions==1.21.3
+requests==2.32.3
+beautifulsoup4==4.12.3
+lxml==5.2.2
+azure-cosmos==4.7.0
