@@ -8,6 +8,7 @@ import os
 import uuid
 import logging
 import requests
+import hashlib
 from bs4 import BeautifulSoup
 from datetime import datetime, timezone
 from azure.cosmos import CosmosClient, PartitionKey, exceptions
@@ -97,15 +98,20 @@ def classify_category(title: str, excerpt: str) -> str:
     if any(w in text for w in ["trek", "hill", "nature", "garden", "sajjangarh",
                                 "jungle", "wildlife", "birds"]):
         return "nature"
+    if any(w in text for w in ["lake", "pichola", "fateh sagar", "badi", "ghat", "doodh talai", "swaroop sagar", "amati"]):
+        return "lakes"
     if any(w in text for w in ["hotel", "resort", "stay", "accommodation", "hostel"]):
         return "hotels"
     return "general"
 
+def generate_deterministic_id(url: str) -> str:
+    """Creates a consistent, unique ID based on the URL."""
+    return hashlib.md5(url.encode('utf-8')).hexdigest()
 
 def build_item(title: str, url: str, excerpt: str, source: str) -> dict:
     category = classify_category(title, excerpt)
     return {
-        "id":         str(uuid.uuid4()),
+        "id":         generate_deterministic_id(url), # CHANGED THIS LINE
         "title":      title,
         "url":        url,
         "excerpt":    excerpt[:500],
