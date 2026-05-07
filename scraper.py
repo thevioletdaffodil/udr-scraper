@@ -5,7 +5,6 @@ Stores results to Azure Cosmos DB.
 """
 
 import os
-import uuid
 import logging
 import requests
 import hashlib
@@ -124,79 +123,74 @@ def build_item(title: str, url: str, excerpt: str, source: str) -> dict:
 # ── Per-site scrapers ───────────────────────────────────────────────────────────
 
 def scrape_udaipur_times(base_url: str, source_name: str) -> list[dict]:
-    """Scrape article listings from Udaipur Times."""
     soup = fetch_page(base_url)
-    if not soup:
-        return []
+    if not soup: return []
 
     items = []
-    # Udaipur Times uses <article> tags or .jeg_post class blocks
-    candidates = (
-        soup.find_all("article")
-        or soup.find_all("div", class_=lambda c: c and "jeg_post" in c)
-        or soup.find_all("div", class_=lambda c: c and "post" in str(c).lower())
-    )
+    # Combined CSS selector: finds ALL jeg_posts, articles, and generic post classes at once
+    candidates = soup.select(".jeg_post, article, .post-block, .td-block-span12")
 
-    for art in candidates[:15]:
+    for art in candidates:
         title_tag = art.find(["h1", "h2", "h3"])
         link_tag  = art.find("a", href=True)
-        para      = art.find("p")
+        para      = art.find(["p", "div"], class_=["jeg_post_excerpt", "excerpt"])
 
-        if not title_tag:
-            continue
+        if title_tag and link_tag:
+            title = title_tag.get_text(strip=True)
+            link = link_tag["href"]
+            if link.startswith("/"): link = base_url.rstrip("/") + link
+            excerpt = para.get_text(strip=True) if para else ""
+            
+            # Use deterministic ID to prevent duplicates in Cosmos
+            item = build_item(title, link, excerpt, source_name)
+            item["id"] = generate_id(link) 
+            items.append(item)
 
-        title   = title_tag.get_text(strip=True)
-        link    = link_tag["href"] if link_tag else base_url
-        excerpt = para.get_text(strip=True) if para else ""
-
-        # Make sure link is absolute
-        if link.startswith("/"):
-            link = base_url.rstrip("/") + link
-
-        if title:
-            items.append(build_item(title, link, excerpt, source_name))
-
-    logging.info("udaipurtimes.com → %d items", len(items))
-    return items
-
+    return items[:25] # Increased limit for more variety
 
 def scrape_udaipur_tourism(base_url: str, source_name: str) -> list[dict]:
-    """Scrape attraction / place listings from udaipurtourism.co.in."""
+    """Scrape attraction / place listings from udaipurtourism.co.in using robust CSS selectors."""
     soup = fetch_page(base_url)
     if not soup:
         return []
 
     items = []
-    # Tourism site usually has card-style listings
-    candidates = (
-        soup.find_all("div", class_=lambda c: c and any(
-            k in str(c).lower() for k in ["attraction", "place", "card", "item", "listing"]
-        ))
-        or soup.find_all("li", class_=lambda c: c and "place" in str(c).lower())
-        or soup.find_all("article")
-    )
+    
+    # The comma acts as an "AND", putting ALL matching elements into one giant list
+    candidates = soup.select(".attraction-card, .place-card, .item, .listing-item, [class*='card']")
 
-    seen = set()
-    for block in candidates[:20]:
+    seen_links = set()
+    for block in candidates[:50]: 
         title_tag = block.find(["h1", "h2", "h3", "h4"])
         link_tag  = block.find("a", href=True)
-        para      = block.find("p")
-
-        if not title_tag:
+        
+        # If a block doesn't have a title and a link, skip it
+        if not title_tag or not link_tag:
             continue
+
+        link = link_tag["href"]
+        
+        # Prevent processing the exact same link twice on the same page
+        if link in seen_links: 
+            continue
+        seen_links.add(link)
 
         title = title_tag.get_text(strip=True)
-        if title in seen or not title:
+        if not title:
             continue
-        seen.add(title)
-
-        link    = link_tag["href"] if link_tag else base_url
-        excerpt = para.get_text(strip=True) if para else ""
-
-        if link.startswith("/"):
+            
+        if link.startswith("/"): 
             link = base_url.rstrip("/") + link
+            
+        excerpt = ""
+        p_tag = block.find("p")
+        if p_tag: 
+            excerpt = p_tag.get_text(strip=True)
 
-        items.append(build_item(title, link, excerpt, source_name))
+        # Build the item and add the deterministic ID (prevents Cosmos DB duplicates)
+        item = build_item(title, link, excerpt, source_name)
+        item["id"] = generate_id(link) 
+        items.append(item)
 
     logging.info("udaipurtourism.co.in → %d items", len(items))
     return items
