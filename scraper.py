@@ -50,8 +50,7 @@ def get_cosmos_container():
     db = client.create_database_if_not_exists(id=DATABASE_NAME)
     container = db.create_container_if_not_exists(
         id=CONTAINER_NAME,
-        partition_key=PartitionKey(path=PARTITION_KEY),
-        offer_throughput=400,
+        partition_key=PartitionKey(path=PARTITION_KEY)
     )
     return container
 
