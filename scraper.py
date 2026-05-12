@@ -143,7 +143,7 @@ def scrape_udaipur_times(base_url: str, source_name: str) -> list[dict]:
             
             # Use deterministic ID to prevent duplicates in Cosmos
             item = build_item(title, link, excerpt, source_name)
-            item["id"] = generate_id(link) 
+            item["id"] = generate_deterministic_id(link) 
             items.append(item)
 
     return items[:25] # Increased limit for more variety
@@ -189,7 +189,7 @@ def scrape_udaipur_tourism(base_url: str, source_name: str) -> list[dict]:
 
         # Build the item and add the deterministic ID (prevents Cosmos DB duplicates)
         item = build_item(title, link, excerpt, source_name)
-        item["id"] = generate_id(link) 
+        item["id"] = generate_deterministic_id(link) 
         items.append(item)
 
     logging.info("udaipurtourism.co.in → %d items", len(items))
